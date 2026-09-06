@@ -1,0 +1,858 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<title>外送助手</title>
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:#0b0f14;
+  color:#fff;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif
+}
+.wrap{max-width:720px;margin:auto;padding:18px}
+h1{font-size:30px;margin:8px 0 2px}
+.sub{color:#94a3b8;font-size:14px;margin-bottom:16px}
+.card{
+  background:#111827;
+  border:1px solid #263244;
+  border-radius:18px;
+  padding:16px;
+  margin:12px 0
+}
+.grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px
+}
+.stat{
+  background:#0f172a;
+  border-radius:14px;
+  padding:12px
+}
+.stat small{color:#94a3b8}
+.stat b{display:block;font-size:24px;margin-top:5px}
+.timer{
+  text-align:center;
+  font-size:42px;
+  font-weight:800;
+  font-variant-numeric:tabular-nums;
+  margin:10px 0
+}
+.row{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px
+}
+label{
+  display:block;
+  color:#cbd5e1;
+  font-size:13px;
+  margin-bottom:6px
+}
+input,select{
+  width:100%;
+  padding:12px;
+  border-radius:12px;
+  border:1px solid #334155;
+  background:#0b1220;
+  color:#fff;
+  font-size:16px
+}
+button{
+  width:100%;
+  padding:16px;
+  border:0;
+  border-radius:15px;
+  font-size:18px;
+  font-weight:800
+}
+.start{background:#22c55e;color:#06240f}
+.finish{background:#ef4444;color:#fff}
+.secondary{background:#1f2937;color:#fff;font-size:15px;padding:12px}
+.buttons{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px
+}
+.muted{color:#94a3b8;font-size:13px}
+.warning{color:#fbbf24;font-size:12px;line-height:1.5}
+.trip{
+  background:#0f172a;
+  border-radius:12px;
+  padding:12px;
+  margin-top:8px;
+  font-size:14px
+}
+.trip b{font-size:16px}
+.active{border-color:#22c55e}
+</style>
+</head>
+
+<body>
+<div class="wrap">
+
+<h1>外送助手</h1>
+<div class="sub">接單計時・GPS 里程・收入・補貼差額估算</div>
+
+<div class="grid">
+  <div class="stat">
+    <small>今日趟次</small>
+    <b id="statTrips">0</b>
+  </div>
+
+  <div class="stat">
+    <small>今日收入</small>
+    <b id="statIncome">$0</b>
+  </div>
+
+  <div class="stat">
+    <small>今日里程</small>
+    <b id="statKm">0.00 km</b>
+  </div>
+
+  <div class="stat">
+    <small>估算差額</small>
+    <b id="statDiff">$0</b>
+  </div>
+</div>
+
+<div class="card" id="activeCard">
+
+  <div class="muted">目前外送時間</div>
+
+  <div class="timer" id="timer">00:00:00</div>
+
+  <div class="muted" id="gpsStatus">
+    GPS 尚未啟動
+  </div>
+
+  <div class="row" style="margin-top:12px">
+
+    <div>
+      <label>同趟訂單數</label>
+      <select id="orders">
+        <option value="1">1 單</option>
+        <option value="2">2 單</option>
+        <option value="3">3 單</option>
+        <option value="4">4 單</option>
+        <option value="5">5 單</option>
+        <option value="6">6 單</option>
+      </select>
+    </div>
+
+    <div>
+      <label>GPS 里程</label>
+      <input id="liveKm" value="0.00 km" readonly>
+    </div>
+
+  </div>
+
+  <div style="margin-top:14px">
+    <button id="mainButton" class="start">
+      接單開始
+    </button>
+  </div>
+
+</div>
+
+<div class="card">
+
+  <div class="row">
+
+    <div>
+      <label>本趟收入（元）</label>
+      <input
+        id="income"
+        type="number"
+        inputmode="decimal"
+        placeholder="例如 120"
+      >
+    </div>
+
+    <div>
+      <label>手動里程 km</label>
+      <input
+        id="manualKm"
+        type="number"
+        inputmode="decimal"
+        step="0.1"
+        placeholder="GPS 不準時填"
+      >
+    </div>
+
+  </div>
+
+  <p class="muted">
+    自訂估算公式：
+    外送分鐘 × 4.1 元 × 同趟訂單數
+  </p>
+
+  <p class="warning">
+    此為個人核算估算工具，不代表 Uber Eats 或政府正式認定的補貼計算方式。
+  </p>
+
+</div>
+
+<div class="buttons">
+
+  <button class="secondary" id="exportButton">
+    匯出 CSV
+  </button>
+
+  <button class="secondary" id="clearButton">
+    清除今日資料
+  </button>
+
+</div>
+
+<div class="card">
+
+  <b>今日外送紀錄</b>
+
+  <div id="tripList">
+    <div class="muted" style="margin-top:10px">
+      今天還沒有紀錄
+    </div>
+  </div>
+
+</div>
+
+<div class="warning">
+iPhone Safari 或加入主畫面的網頁，在鎖定螢幕或切到背景時，GPS 可能停止更新。完成外送後請確認實際里程。
+</div>
+
+</div>
+
+<script>
+
+const STORAGE_KEY = "delivery-helper-v1"
+
+let data = loadData()
+let timerInterval = null
+let gpsWatch = null
+let lastPosition = null
+
+function loadData(){
+
+  try{
+
+    return JSON.parse(
+      localStorage.getItem(STORAGE_KEY)
+    ) || {
+      active:null,
+      trips:[]
+    }
+
+  }catch(e){
+
+    return {
+      active:null,
+      trips:[]
+    }
+
+  }
+
+}
+
+function saveData(){
+
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify(data)
+  )
+
+}
+
+function today(){
+
+  const d = new Date()
+
+  return (
+    d.getFullYear()
+    + "-"
+    + String(d.getMonth()+1).padStart(2,"0")
+    + "-"
+    + String(d.getDate()).padStart(2,"0")
+  )
+
+}
+
+function formatClock(d){
+
+  return (
+    String(d.getHours()).padStart(2,"0")
+    + ":"
+    + String(d.getMinutes()).padStart(2,"0")
+  )
+
+}
+
+function formatTimer(ms){
+
+  let seconds = Math.floor(ms/1000)
+
+  let h = Math.floor(seconds/3600)
+
+  let m = Math.floor((seconds%3600)/60)
+
+  let s = seconds%60
+
+  return (
+    String(h).padStart(2,"0")
+    + ":"
+    + String(m).padStart(2,"0")
+    + ":"
+    + String(s).padStart(2,"0")
+  )
+
+}
+
+function distance(a,b){
+
+  const R = 6371
+
+  const rad = x => x * Math.PI / 180
+
+  const dLat = rad(b.lat-a.lat)
+  const dLon = rad(b.lon-a.lon)
+
+  const x =
+    Math.sin(dLat/2)**2
+    +
+    Math.cos(rad(a.lat))
+    *
+    Math.cos(rad(b.lat))
+    *
+    Math.sin(dLon/2)**2
+
+  return (
+    2
+    *
+    R
+    *
+    Math.asin(Math.sqrt(x))
+  )
+
+}
+
+function startGPS(){
+
+  if(!navigator.geolocation){
+
+    document.getElementById("gpsStatus").textContent =
+      "此裝置不支援 GPS"
+
+    return
+
+  }
+
+  gpsWatch =
+    navigator.geolocation.watchPosition(
+
+      function(position){
+
+        const accuracy =
+          position.coords.accuracy
+
+        document.getElementById("gpsStatus").textContent =
+          "GPS 已啟動，精度約 "
+          + Math.round(accuracy)
+          + " 公尺"
+
+        if(accuracy > 80){
+          return
+        }
+
+        const current = {
+          lat:position.coords.latitude,
+          lon:position.coords.longitude
+        }
+
+        if(lastPosition && data.active){
+
+          const km =
+            distance(lastPosition,current)
+
+          if(km < 1.5){
+
+            data.active.km += km
+
+            document.getElementById("liveKm").value =
+              data.active.km.toFixed(2)
+              + " km"
+
+            saveData()
+
+          }
+
+        }
+
+        lastPosition = current
+
+      },
+
+      function(){
+
+        document.getElementById("gpsStatus").textContent =
+          "GPS 無法使用，請允許位置權限"
+
+      },
+
+      {
+        enableHighAccuracy:true,
+        maximumAge:5000,
+        timeout:15000
+      }
+
+    )
+
+}
+
+function stopGPS(){
+
+  if(gpsWatch !== null){
+
+    navigator.geolocation.clearWatch(
+      gpsWatch
+    )
+
+  }
+
+  gpsWatch = null
+  lastPosition = null
+
+}
+
+function startTrip(){
+
+  data.active = {
+
+    startedAt:Date.now(),
+
+    orders:
+      Number(
+        document.getElementById("orders").value
+      ),
+
+    km:0
+
+  }
+
+  saveData()
+
+  document.getElementById("income").value = ""
+  document.getElementById("manualKm").value = ""
+
+  startGPS()
+
+  startTimer()
+
+  render()
+
+}
+
+function startTimer(){
+
+  clearInterval(timerInterval)
+
+  timerInterval =
+    setInterval(function(){
+
+      if(!data.active){
+        return
+      }
+
+      document.getElementById("timer").textContent =
+        formatTimer(
+          Date.now()
+          -
+          data.active.startedAt
+        )
+
+    },1000)
+
+}
+
+function finishTrip(){
+
+  if(!data.active){
+    return
+  }
+
+  const endTime = Date.now()
+
+  const minutes =
+    (
+      endTime
+      -
+      data.active.startedAt
+    )
+    /60000
+
+  const orderCount =
+    Number(
+      document.getElementById("orders").value
+    )
+
+  const income =
+    Number(
+      document.getElementById("income").value
+    )
+    ||0
+
+  let km =
+    data.active.km || 0
+
+  const manual =
+    Number(
+      document.getElementById("manualKm").value
+    )
+
+  if(manual > 0){
+    km = manual
+  }
+
+  const estimate =
+    minutes
+    *
+    4.1
+    *
+    orderCount
+
+  const diff =
+    Math.max(
+      0,
+      estimate-income
+    )
+
+  const startDate =
+    new Date(
+      data.active.startedAt
+    )
+
+  const endDate =
+    new Date(
+      endTime
+    )
+
+  data.trips.push({
+
+    date:today(),
+
+    start:
+      formatClock(startDate),
+
+    end:
+      formatClock(endDate),
+
+    minutes:minutes,
+
+    orders:orderCount,
+
+    km:km,
+
+    income:income,
+
+    estimate:estimate,
+
+    diff:diff
+
+  })
+
+  data.active = null
+
+  stopGPS()
+
+  clearInterval(timerInterval)
+
+  saveData()
+
+  render()
+
+}
+
+function render(){
+
+  const todayTrips =
+    data.trips.filter(
+      trip =>
+      trip.date === today()
+    )
+
+  let totalIncome = 0
+  let totalKm = 0
+  let totalDiff = 0
+
+  todayTrips.forEach(function(t){
+
+    totalIncome += t.income
+    totalKm += t.km
+    totalDiff += t.diff
+
+  })
+
+  document.getElementById("statTrips").textContent =
+    todayTrips.length
+
+  document.getElementById("statIncome").textContent =
+    "$" + Math.round(totalIncome)
+
+  document.getElementById("statKm").textContent =
+    totalKm.toFixed(2)
+    + " km"
+
+  document.getElementById("statDiff").textContent =
+    "$" + Math.round(totalDiff)
+
+  const button =
+    document.getElementById("mainButton")
+
+  const card =
+    document.getElementById("activeCard")
+
+  if(data.active){
+
+    button.textContent =
+      "完成送達"
+
+    button.className =
+      "finish"
+
+    card.classList.add(
+      "active"
+    )
+
+    document.getElementById("orders").value =
+      data.active.orders
+
+    document.getElementById("liveKm").value =
+      (data.active.km||0).toFixed(2)
+      + " km"
+
+  }else{
+
+    button.textContent =
+      "接單開始"
+
+    button.className =
+      "start"
+
+    card.classList.remove(
+      "active"
+    )
+
+    document.getElementById("timer").textContent =
+      "00:00:00"
+
+    document.getElementById("liveKm").value =
+      "0.00 km"
+
+    document.getElementById("gpsStatus").textContent =
+      "GPS 尚未啟動"
+
+  }
+
+  const list =
+    document.getElementById("tripList")
+
+  if(todayTrips.length === 0){
+
+    list.innerHTML =
+      '<div class="muted" style="margin-top:10px">今天還沒有紀錄</div>'
+
+  }else{
+
+    list.innerHTML =
+      todayTrips
+      .slice()
+      .reverse()
+      .map(function(t){
+
+        return (
+
+          '<div class="trip">'
+          +
+          '<b>'
+          + t.start
+          + " → "
+          + t.end
+          + '</b><br>'
+          +
+          t.orders
+          + " 單 ｜ "
+          +
+          t.minutes.toFixed(1)
+          + " 分 ｜ "
+          +
+          t.km.toFixed(2)
+          + " km"
+          +
+          "<br>"
+          +
+          "收入 $"
+          + Math.round(t.income)
+          +
+          " ｜估算 $"
+          + Math.round(t.estimate)
+          +
+          " ｜差額 $"
+          + Math.round(t.diff)
+          +
+          "</div>"
+
+        )
+
+      })
+      .join("")
+
+  }
+
+}
+
+document.getElementById("mainButton")
+.onclick = function(){
+
+  if(data.active){
+
+    finishTrip()
+
+  }else{
+
+    startTrip()
+
+  }
+
+}
+
+document.getElementById("orders")
+.onchange = function(){
+
+  if(data.active){
+
+    data.active.orders =
+      Number(this.value)
+
+    saveData()
+
+  }
+
+}
+
+document.getElementById("clearButton")
+.onclick = function(){
+
+  if(
+    confirm(
+      "確定清除今天的外送紀錄？"
+    )
+  ){
+
+    const d = today()
+
+    data.trips =
+      data.trips.filter(
+        t =>
+        t.date !== d
+      )
+
+    saveData()
+
+    render()
+
+  }
+
+}
+
+document.getElementById("exportButton")
+.onclick = function(){
+
+  const rows = [
+
+    [
+      "日期",
+      "開始",
+      "完成",
+      "分鐘",
+      "訂單數",
+      "里程km",
+      "收入",
+      "估算補貼",
+      "估算差額"
+    ]
+
+  ]
+
+  data.trips.forEach(function(t){
+
+    rows.push([
+
+      t.date,
+      t.start,
+      t.end,
+      t.minutes.toFixed(2),
+      t.orders,
+      t.km.toFixed(2),
+      t.income.toFixed(0),
+      t.estimate.toFixed(2),
+      t.diff.toFixed(2)
+
+    ])
+
+  })
+
+  const csv =
+    "\ufeff"
+    +
+    rows
+    .map(
+      r => r.join(",")
+    )
+    .join("\n")
+
+  const blob =
+    new Blob(
+      [csv],
+      {
+        type:
+        "text/csv;charset=utf-8"
+      }
+    )
+
+  const url =
+    URL.createObjectURL(blob)
+
+  const a =
+    document.createElement("a")
+
+  a.href = url
+
+  a.download =
+    "外送助手紀錄.csv"
+
+  a.click()
+
+  URL.revokeObjectURL(url)
+
+}
+
+if(data.active){
+
+  document.getElementById("orders").value =
+    data.active.orders
+
+  startTimer()
+
+  startGPS()
+
+}
+
+render()
+
+</script>
+
+</body>
+</html>
