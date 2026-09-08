@@ -127,6 +127,7 @@ button{width:100%;padding:14px;border:0;border-radius:14px;font-size:16px;font-w
 <div class="buttons">
 <button class="secondary" id="exportBtn">匯出備份 CSV</button>
 <button class="secondary" id="clearBtn">清除今日資料</button>
+<button class="finish" id="resetAllBtn" style="grid-column:1/-1">⚠️ 正式初始化：清除全部測試資料</button>
 </div>
 
 <div class="warning" style="margin-top:12px">
@@ -440,6 +441,22 @@ function clearToday(){
  save();renderAll();
 }
 
+async function resetAllData(){
+ if(!confirm("這會清除所有外送、訂單、待機與進行中測試資料，但保留登入帳號。確定要正式初始化？"))return;
+ if(!confirm("最後確認：清除後無法復原。明天正式開始後請不要再使用此功能。確定清除全部資料？"))return;
+ stopGPS();
+ clearTimeout(syncTimer);
+ data=blank();
+ data._updatedAt=Date.now();
+ localStorage.setItem(KEY,JSON.stringify(data));
+ lastOrderStructure="";
+ el("firstAmount").value="";el("nextAmount").value="";el("manualKm").value="";
+ renderAll();
+ if(session){await syncNow(true);}
+ else{setSyncStatus("本機已全部歸零；登入後請按立即同步");}
+ alert("全部測試資料已歸零。登入狀態保留。"+(session?" 雲端同步已執行。":""));
+}
+
 el("startBtn").onclick=startTrip;
 el("addBtn").onclick=addOrder;
 el("closeBtn").onclick=closeTrip;
@@ -447,6 +464,7 @@ el("idleStart").onclick=startIdle;
 el("idleStop").onclick=()=>stopIdle(true);
 el("exportBtn").onclick=exportCSV;
 el("clearBtn").onclick=clearToday;
+el("resetAllBtn").onclick=resetAllData;
 el("loginBtn").onclick=login;
 el("signupBtn").onclick=signup;
 el("logoutBtn").onclick=logout;
@@ -462,3 +480,4 @@ setInterval(()=>{if(session)syncNow(false)},30000);
 </script>
 </body>
 </html>
+
