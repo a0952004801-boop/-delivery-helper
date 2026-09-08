@@ -1,0 +1,2956 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<meta name="apple-mobile-web-app-capable" content="yes">
+
+<title>外送助手 v0.4</title>
+
+<style>
+*{
+  box-sizing:border-box;
+}
+
+body{
+  margin:0;
+  background:#0b0f14;
+  color:#fff;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+
+.wrap{
+  max-width:760px;
+  margin:auto;
+  padding:16px;
+}
+
+h1{
+  font-size:29px;
+  margin:6px 0;
+}
+
+.sub,
+.muted{
+  color:#94a3b8;
+  font-size:13px;
+}
+
+.card{
+  background:#111827;
+  border:1px solid #263244;
+  border-radius:18px;
+  padding:15px;
+  margin:12px 0;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:9px;
+}
+
+.stat{
+  background:#0f172a;
+  border-radius:13px;
+  padding:11px;
+}
+
+.stat small{
+  color:#94a3b8;
+}
+
+.stat b{
+  display:block;
+  font-size:20px;
+  margin-top:4px;
+}
+
+.timer{
+  text-align:center;
+  font-size:38px;
+  font-weight:800;
+  font-variant-numeric:tabular-nums;
+  margin:8px;
+}
+
+label{
+  display:block;
+  color:#cbd5e1;
+  font-size:13px;
+  margin:8px 0 5px;
+}
+
+input,
+select{
+  width:100%;
+  padding:12px;
+  border-radius:11px;
+  border:1px solid #334155;
+  background:#0b1220;
+  color:#fff;
+  font-size:16px;
+}
+
+button{
+  width:100%;
+  padding:14px;
+  border:0;
+  border-radius:14px;
+  font-size:16px;
+  font-weight:800;
+  margin-top:8px;
+}
+
+.start{
+  background:#22c55e;
+  color:#06240f;
+}
+
+.finish{
+  background:#ef4444;
+  color:#fff;
+}
+
+.add{
+  background:#2563eb;
+  color:#fff;
+}
+
+.secondary{
+  background:#1f2937;
+  color:#fff;
+}
+
+.orange{
+  background:#f59e0b;
+  color:#1c1202;
+}
+
+.buttons{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:9px;
+}
+
+.order,
+.trip,
+.rank{
+  background:#0f172a;
+  border:1px solid #334155;
+  border-radius:13px;
+  padding:11px;
+  margin-top:9px;
+  font-size:14px;
+}
+
+.order.done{
+  opacity:.75;
+}
+
+.orderhead{
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+}
+
+.warning{
+  color:#fbbf24;
+  font-size:12px;
+  line-height:1.5;
+}
+
+.tabs{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:6px;
+}
+
+.tabs button{
+  font-size:13px;
+  padding:10px;
+}
+
+.hidden{
+  display:none;
+}
+
+.route{
+  margin-top:5px;
+  font-weight:700;
+}
+
+.smallline{
+  color:#cbd5e1;
+  font-size:13px;
+  margin-top:4px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="wrap">
+
+<h1>
+外送助手
+<span class="muted">v0.4</span>
+</h1>
+
+<div class="sub">
+起點→終點・疊單獨立計時・4.1元估算・04:00期別・地區×時段分析
+</div>
+
+
+<!-- 今日統計 -->
+
+<div class="grid">
+
+<div class="stat">
+<small>今日趟次</small>
+<b id="sTrips">0</b>
+</div>
+
+<div class="stat">
+<small>今日訂單</small>
+<b id="sOrders">0</b>
+</div>
+
+<div class="stat">
+<small>今日接單金額</small>
+<b id="sIncome">$0</b>
+</div>
+
+<div class="stat">
+<small>今日估算差額</small>
+<b id="sDiff">$0</b>
+</div>
+
+<div class="stat">
+<small>今日里程</small>
+<b id="sKm">0.00 km</b>
+</div>
+
+<div class="stat">
+<small>目前期別訂單</small>
+<b id="sPeriodOrders">0</b>
+</div>
+
+</div>
+
+
+<!-- 本期統計 -->
+
+<div class="card">
+
+<b>目前期別</b>
+
+<div
+id="periodText"
+class="muted"
+style="margin-top:7px">
+</div>
+
+<div
+class="grid"
+style="margin-top:10px">
+
+<div class="stat">
+<small>本期接單金額</small>
+<b id="pIncome">$0</b>
+</div>
+
+<div class="stat">
+<small>本期4.1估算</small>
+<b id="pEstimate">$0</b>
+</div>
+
+<div class="stat">
+<small>本期估算差額</small>
+<b id="pDiff">$0</b>
+</div>
+
+<div class="stat">
+<small>本期訂單</small>
+<b id="pOrders">0</b>
+</div>
+
+</div>
+
+</div>
+
+
+<!-- 目前進行中的趟次 -->
+
+<div
+class="card"
+id="activeCard">
+
+<div class="muted">
+本趟總時間
+</div>
+
+<div
+class="timer"
+id="timer">
+00:00:00
+</div>
+
+<div
+class="muted"
+id="gpsStatus">
+GPS 尚未啟動
+</div>
+
+<label>
+GPS里程（參考）
+</label>
+
+<input
+id="liveKm"
+value="0.00 km"
+readonly
+>
+
+
+<div id="ordersArea"></div>
+
+
+<!-- 第1張 -->
+
+<div id="firstBox">
+
+<label>
+第1張接單金額（元）
+</label>
+
+<input
+id="firstAmount"
+type="number"
+inputmode="decimal"
+placeholder="例如 45"
+>
+
+<label>
+起點區域
+</label>
+
+<select id="firstStart"></select>
+
+<button
+id="startBtn"
+class="start">
+第1張接單開始
+</button>
+
+</div>
+
+
+<!-- 疊單 -->
+
+<div
+id="addBox"
+class="hidden">
+
+<label id="nextLabel">
+第2張疊單接單金額（元）
+</label>
+
+<input
+id="nextAmount"
+type="number"
+inputmode="decimal"
+placeholder="例如 52"
+>
+
+<label>
+這張訂單起點區域
+</label>
+
+<select id="nextStart"></select>
+
+<button
+id="addBtn"
+class="add">
+＋ 加入疊單
+</button>
+
+</div>
+
+</div>
+
+
+<!-- 待機 -->
+
+<div class="card">
+
+<b>
+待機／無單紀錄
+</b>
+
+<div
+class="muted"
+style="margin-top:6px">
+沒有接單時可記錄目前等待區域，用來分析哪裡最容易空等。
+</div>
+
+<label>
+目前待機區域
+</label>
+
+<select id="idleArea"></select>
+
+<div class="buttons">
+
+<button
+id="idleStart"
+class="orange">
+開始待機
+</button>
+
+<button
+id="idleStop"
+class="secondary">
+結束待機
+</button>
+
+</div>
+
+<div
+id="idleStatus"
+class="muted"
+style="margin-top:8px">
+目前沒有待機計時
+</div>
+
+</div>
+
+
+<!-- 里程 -->
+
+<div class="card">
+
+<label>
+本趟手動里程 km
+</label>
+
+<input
+id="manualKm"
+type="number"
+inputmode="decimal"
+step="0.1"
+placeholder="GPS不準時可填 Uber 顯示里程"
+>
+
+<button
+id="closeBtn"
+class="finish hidden">
+結束本趟並儲存
+</button>
+
+<p class="warning">
+4.1元／分鐘為你的個人估算方式，
+不代表 Uber Eats 或政府正式認定的補貼計算。
+</p>
+
+</div>
+
+
+<!-- 紀錄 / 分析 / 歷期 -->
+
+<div class="card">
+
+<div class="tabs">
+
+<button
+class="secondary"
+onclick="showPanel('records')">
+完整紀錄
+</button>
+
+<button
+class="secondary"
+onclick="showPanel('analysis')">
+本期分析
+</button>
+
+<button
+class="secondary"
+onclick="showPanel('periods')">
+歷期結算
+</button>
+
+</div>
+
+
+<div id="recordsPanel">
+<div id="tripList"></div>
+</div>
+
+<div
+id="analysisPanel"
+class="hidden">
+<div id="analysis"></div>
+</div>
+
+<div
+id="periodsPanel"
+class="hidden">
+<div id="periodList"></div>
+</div>
+
+</div>
+
+
+<div class="buttons">
+
+<button
+class="secondary"
+id="exportBtn">
+匯出備份 CSV
+</button>
+
+<button
+class="secondary"
+id="clearBtn">
+清除今日資料
+</button>
+
+</div>
+
+
+<div
+class="warning"
+style="margin-top:12px">
+
+iPhone PWA 在背景或鎖屏時可能暫停 GPS。
+計時使用時間戳記，不受畫面休眠影響。
+區域與手動里程會保留作主要分析資料。
+
+</div>
+
+</div>
+
+
+
+<script>
+
+/* =========================
+   基本設定
+========================= */
+
+const KEY =
+"delivery-helper-v04";
+
+const OLDKEYS = [
+"delivery-helper-v03-final",
+"delivery-helper-v03"
+];
+
+const RATE = 4.1;
+
+
+/* =========================
+   區域
+========================= */
+
+const AREAS = [
+
+"北區",
+"中西區",
+"東區",
+"永康區",
+"安南區",
+"安平區",
+"南區",
+
+"仁德區",
+"歸仁區",
+"新市區",
+"善化區",
+"安定區",
+
+"其他"
+
+];
+
+
+/* =========================
+   全域變數
+========================= */
+
+let data =
+load();
+
+let timerInt =
+null;
+
+let gpsWatch =
+null;
+
+let lastPos =
+null;
+
+
+/* =========================
+   基本函式
+========================= */
+
+function blank(){
+
+return{
+
+active:null,
+
+trips:[],
+
+idle:null,
+
+idles:[]
+
+};
+
+}
+
+
+function load(){
+
+try{
+
+let x =
+JSON.parse(
+localStorage.getItem(KEY)
+);
+
+if(x){
+
+return Object.assign(
+blank(),
+x
+);
+
+}
+
+
+/* 嘗試讀取 v0.3 舊資料 */
+
+for(
+const k
+of OLDKEYS
+){
+
+let old =
+JSON.parse(
+localStorage.getItem(k)
+);
+
+if(old){
+
+old.idles =
+old.idles || [];
+
+old.idle =
+null;
+
+localStorage.setItem(
+KEY,
+JSON.stringify(old)
+);
+
+return Object.assign(
+blank(),
+old
+);
+
+}
+
+}
+
+}catch(e){}
+
+return blank();
+
+}
+
+
+function save(){
+
+localStorage.setItem(
+KEY,
+JSON.stringify(data)
+);
+
+}
+
+
+function el(id){
+
+return document.getElementById(id);
+
+}
+
+
+function money(n){
+
+return (
+"$"
++
+Number(
+n || 0
+).toFixed(1)
+);
+
+}
+
+
+function localDate(
+ms = Date.now()
+){
+
+let d =
+new Date(ms);
+
+return(
+d.getFullYear()
++
+"-"
++
+String(
+d.getMonth()+1
+).padStart(2,"0")
++
+"-"
++
+String(
+d.getDate()
+).padStart(2,"0")
+);
+
+}
+
+
+function clock(ms){
+
+let d =
+new Date(ms);
+
+return(
+String(
+d.getHours()
+).padStart(2,"0")
++
+":"
++
+String(
+d.getMinutes()
+).padStart(2,"0")
++
+":"
++
+String(
+d.getSeconds()
+).padStart(2,"0")
+);
+
+}
+
+
+function dur(ms){
+
+let s =
+Math.max(
+0,
+Math.floor(
+ms / 1000
+)
+);
+
+let h =
+Math.floor(
+s / 3600
+);
+
+let m =
+Math.floor(
+(s % 3600) / 60
+);
+
+let q =
+s % 60;
+
+return(
+[
+h,
+m,
+q
+]
+.map(
+v =>
+String(v).padStart(2,"0")
+)
+.join(":")
+);
+
+}
+
+
+/* =========================
+   每張訂單計算
+========================= */
+
+function mins(
+order,
+now = Date.now()
+){
+
+return Math.max(
+0,
+(
+(order.endedAt || now)
+-
+order.startedAt
+)
+/
+60000
+);
+
+}
+
+
+function est(
+order,
+now = Date.now()
+){
+
+return(
+mins(
+order,
+now
+)
+*
+RATE
+);
+
+}
+
+
+function diff(
+order,
+now = Date.now()
+){
+
+return Math.max(
+
+0,
+
+est(
+order,
+now
+)
+-
+Number(
+order.amount || 0
+)
+
+);
+
+}
+
+
+/* =========================
+   時段標籤
+========================= */
+
+function hourLabel(ms){
+
+let h =
+new Date(ms)
+.getHours();
+
+return(
+String(h).padStart(2,"0")
++
+":00–"
++
+String(h).padStart(2,"0")
++
+":59"
+);
+
+}
+
+
+/* =========================
+   雙週期別
+   以 2026/08/31 04:00 為基準
+========================= */
+
+function periodFor(ms){
+
+let anchor =
+new Date(
+2026,
+7,
+31,
+4,
+0,
+0,
+0
+).getTime();
+
+let span =
+14
+*
+24
+*
+60
+*
+60
+*
+1000;
+
+let i =
+Math.floor(
+(ms-anchor)
+/
+span
+);
+
+let start =
+anchor
++
+i*span;
+
+let end =
+start
++
+span;
+
+return{
+
+start,
+
+end,
+
+key:
+localDate(start)
++
+"_04"
+
+};
+
+}
+
+
+function periodName(p){
+
+return(
+localDate(p.start)
++
+" 04:00 ～ "
++
+localDate(p.end)
++
+" 03:59"
+);
+
+}
+
+
+function currentPeriod(){
+
+return periodFor(
+Date.now()
+);
+
+}
+
+
+/* =========================
+   區域下拉選單
+========================= */
+
+function areaOptions(
+selected=""
+){
+
+return AREAS
+.map(
+a =>
+`
+<option
+value="${a}"
+${a===selected?"selected":""}>
+${a}
+</option>
+`
+)
+.join("");
+
+}
+
+
+function fillAreas(){
+
+[
+"firstStart",
+"nextStart",
+"idleArea"
+]
+.forEach(
+id => {
+
+el(id).innerHTML =
+areaOptions();
+
+}
+);
+
+}
+
+fillAreas();
+
+
+/* =========================
+   GPS
+========================= */
+
+function distance(a,b){
+
+const R =
+6371;
+
+const r =
+x =>
+x*Math.PI/180;
+
+const dlat =
+r(
+b.lat-a.lat
+);
+
+const dlon =
+r(
+b.lon-a.lon
+);
+
+const q =
+
+Math.sin(
+dlat/2
+)**2
+
++
+
+Math.cos(
+r(a.lat)
+)
+
+*
+
+Math.cos(
+r(b.lat)
+)
+
+*
+
+Math.sin(
+dlon/2
+)**2;
+
+return(
+2
+*
+R
+*
+Math.asin(
+Math.sqrt(q)
+)
+);
+
+}
+
+
+function startGPS(){
+
+if(
+!navigator.geolocation
+){
+
+el("gpsStatus").textContent =
+"此裝置不支援 GPS";
+
+return;
+
+}
+
+
+if(
+gpsWatch !== null
+){
+
+navigator.geolocation.clearWatch(
+gpsWatch
+);
+
+}
+
+
+gpsWatch =
+navigator.geolocation.watchPosition(
+
+function(p){
+
+el("gpsStatus").textContent =
+"GPS 已啟動，精度約 "
++
+Math.round(
+p.coords.accuracy
+)
++
+" 公尺";
+
+
+if(
+!data.active
+||
+p.coords.accuracy > 80
+){
+
+return;
+
+}
+
+
+let cur = {
+
+lat:
+p.coords.latitude,
+
+lon:
+p.coords.longitude
+
+};
+
+
+if(lastPos){
+
+let km =
+distance(
+lastPos,
+cur
+);
+
+if(
+km < 1.5
+){
+
+data.active.km =
+(data.active.km || 0)
++
+km;
+
+save();
+
+}
+
+}
+
+
+lastPos =
+cur;
+
+render();
+
+},
+
+function(){
+
+el("gpsStatus").textContent =
+"GPS 無法使用，請檢查位置權限";
+
+},
+
+{
+
+enableHighAccuracy:true,
+
+maximumAge:5000,
+
+timeout:15000
+
+}
+
+);
+
+}
+
+
+function stopGPS(){
+
+if(
+gpsWatch !== null
+){
+
+navigator.geolocation.clearWatch(
+gpsWatch
+);
+
+}
+
+gpsWatch =
+null;
+
+lastPos =
+null;
+
+}
+
+
+/* =========================
+   第1張開始
+========================= */
+
+function startTrip(){
+
+let amount =
+Number(
+el("firstAmount").value
+);
+
+if(
+!(amount > 0)
+){
+
+alert(
+"請輸入第1張接單金額"
+);
+
+return;
+
+}
+
+
+/* 有待機則自動結束 */
+
+stopIdle(
+false
+);
+
+
+let now =
+Date.now();
+
+
+data.active = {
+
+startedAt:
+now,
+
+km:
+0,
+
+orders:[
+
+{
+
+id:1,
+
+startedAt:
+now,
+
+endedAt:
+null,
+
+amount:
+amount,
+
+startArea:
+el("firstStart").value,
+
+endArea:""
+
+}
+
+]
+
+};
+
+
+el("firstAmount").value =
+"";
+
+el("manualKm").value =
+"";
+
+
+save();
+
+startGPS();
+
+render();
+
+}
+
+
+/* =========================
+   加入疊單
+========================= */
+
+function addOrder(){
+
+if(
+!data.active
+||
+data.active.orders.length >= 5
+){
+
+return;
+
+}
+
+
+let amount =
+Number(
+el("nextAmount").value
+);
+
+
+if(
+!(amount > 0)
+){
+
+alert(
+"請輸入這張疊單金額"
+);
+
+return;
+
+}
+
+
+let id =
+data.active.orders.length
++
+1;
+
+
+data.active.orders.push(
+
+{
+
+id:
+
+id,
+
+startedAt:
+Date.now(),
+
+endedAt:
+null,
+
+amount:
+amount,
+
+startArea:
+el("nextStart").value,
+
+endArea:""
+
+}
+
+);
+
+
+el("nextAmount").value =
+"";
+
+
+save();
+
+render();
+
+}
+
+
+/* =========================
+   完成某張訂單
+========================= */
+
+function finishOrder(id){
+
+let order =
+data.active
+?.
+orders
+.find(
+x => x.id === id
+);
+
+
+if(
+!order
+||
+order.endedAt
+){
+
+return;
+
+}
+
+
+let area =
+el(
+"endArea"
++
+id
+).value;
+
+
+if(
+!area
+){
+
+alert(
+"請先選擇終點區域"
+);
+
+return;
+
+}
+
+
+order.endArea =
+area;
+
+order.endedAt =
+Date.now();
+
+
+save();
+
+render();
+
+}
+
+
+/* =========================
+   結束整趟
+========================= */
+
+function closeTrip(){
+
+if(
+!data.active
+){
+
+return;
+
+}
+
+
+if(
+data.active.orders
+.some(
+o => !o.endedAt
+)
+){
+
+alert(
+"還有訂單尚未完成"
+);
+
+return;
+
+}
+
+
+let manual =
+Number(
+el("manualKm").value
+);
+
+
+let active =
+data.active;
+
+
+let trip = {
+
+...active,
+
+endedAt:
+Date.now(),
+
+km:
+manual > 0
+?
+manual
+:
+(active.km || 0)
+
+};
+
+
+data.trips.push(
+trip
+);
+
+
+data.active =
+null;
+
+
+el("manualKm").value =
+"";
+
+
+save();
+
+stopGPS();
+
+render();
+
+}
+
+
+/* =========================
+   待機紀錄
+========================= */
+
+function startIdle(){
+
+if(
+data.idle
+){
+
+alert(
+"待機已經開始"
+);
+
+return;
+
+}
+
+
+if(
+data.active
+){
+
+alert(
+"目前有進行中的訂單"
+);
+
+return;
+
+}
+
+
+data.idle = {
+
+area:
+el("idleArea").value,
+
+startedAt:
+Date.now()
+
+};
+
+
+save();
+
+render();
+
+}
+
+
+function stopIdle(
+renderNow = true
+){
+
+if(
+!data.idle
+){
+
+return;
+
+}
+
+
+data.idles.push(
+
+{
+
+...data.idle,
+
+endedAt:
+Date.now()
+
+}
+
+);
+
+
+data.idle =
+null;
+
+
+save();
+
+
+if(renderNow){
+
+render();
+
+}
+
+}
+
+
+/* =========================
+   統計
+========================= */
+
+function tripOrders(trips){
+
+return trips.flatMap(
+t => t.orders || []
+);
+
+}
+
+
+function totals(trips){
+
+let orders =
+tripOrders(trips);
+
+
+return{
+
+orders:
+orders.length,
+
+income:
+orders.reduce(
+(s,o) =>
+s
++
+Number(
+o.amount || 0
+),
+0
+),
+
+estimate:
+orders.reduce(
+(s,o) =>
+s
++
+est(
+o,
+o.endedAt || Date.now()
+),
+0
+),
+
+diff:
+orders.reduce(
+(s,o) =>
+s
++
+diff(
+o,
+o.endedAt || Date.now()
+),
+0
+),
+
+km:
+trips.reduce(
+(s,t) =>
+s
++
+Number(
+t.km || 0
+),
+0
+)
+
+};
+
+}
+
+
+function todayTrips(){
+
+let td =
+localDate();
+
+return data.trips.filter(
+t =>
+localDate(
+t.startedAt
+)
+===
+td
+);
+
+}
+
+
+function periodTrips(
+p = currentPeriod()
+){
+
+return data.trips.filter(
+t =>
+t.startedAt >= p.start
+&&
+t.startedAt < p.end
+);
+
+}
+
+
+/* =========================
+   畫面更新
+========================= */
+
+function render(){
+
+let now =
+Date.now();
+
+
+let tt =
+totals(
+todayTrips()
+);
+
+
+let p =
+currentPeriod();
+
+
+let pt =
+totals(
+periodTrips(p)
+);
+
+
+/* 今日 */
+
+el("sTrips").textContent =
+todayTrips().length;
+
+el("sOrders").textContent =
+tt.orders;
+
+el("sIncome").textContent =
+money(
+tt.income
+);
+
+el("sDiff").textContent =
+money(
+tt.diff
+);
+
+el("sKm").textContent =
+tt.km.toFixed(2)
++
+" km";
+
+el("sPeriodOrders").textContent =
+pt.orders;
+
+
+/* 本期 */
+
+el("periodText").textContent =
+periodName(p);
+
+el("pIncome").textContent =
+money(
+pt.income
+);
+
+el("pEstimate").textContent =
+money(
+pt.estimate
+);
+
+el("pDiff").textContent =
+money(
+pt.diff
+);
+
+el("pOrders").textContent =
+pt.orders;
+
+
+/* 進行中 */
+
+if(
+data.active
+){
+
+el("timer").textContent =
+dur(
+now
+-
+data.active.startedAt
+);
+
+
+el("firstBox")
+.classList
+.add(
+"hidden"
+);
+
+
+let n =
+data.active.orders.length;
+
+
+el("addBox")
+.classList
+.toggle(
+"hidden",
+n >= 5
+);
+
+
+el("nextLabel").textContent =
+"第"
++
+(n+1)
++
+"張疊單接單金額（元）";
+
+
+el("liveKm").value =
+(
+data.active.km || 0
+)
+.toFixed(2)
++
+" km";
+
+
+el("ordersArea").innerHTML =
+data.active.orders
+.map(
+
+order => {
+
+return`
+
+<div
+class="order
+${order.endedAt?"done":""}">
+
+<div class="orderhead">
+
+<b>
+第${order.id}張
+</b>
+
+<span>
+${order.endedAt
+?
+"已完成"
+:
+"進行中"}
+</span>
+
+</div>
+
+<div class="route">
+
+${order.startArea || "未標註"}
+→
+${order.endArea || "待選"}
+
+</div>
+
+<div class="smallline">
+接單金額：
+${money(order.amount)}
+</div>
+
+<div class="smallline">
+接單：
+${clock(order.startedAt)}
+${order.endedAt
+?
+"｜完成："+clock(order.endedAt)
+:
+""}
+</div>
+
+<div class="smallline">
+時間：
+${mins(order,now).toFixed(1)}
+分鐘
+</div>
+
+<div class="smallline">
+4.1估算：
+${money(est(order,now))}
+</div>
+
+<div class="smallline">
+估算差額：
+${money(diff(order,now))}
+</div>
+
+
+${
+
+!order.endedAt
+
+?
+
+`
+
+<label>
+終點區域
+</label>
+
+<select
+id="endArea${order.id}">
+${areaOptions()}
+</select>
+
+<button
+class="finish"
+onclick="finishOrder(${order.id})">
+完成第${order.id}張
+</button>
+
+`
+
+:
+
+""
+
+}
+
+</div>
+
+`;
+
+}
+)
+.join("");
+
+
+el("closeBtn")
+.classList
+.toggle(
+
+"hidden",
+
+data.active.orders
+.some(
+o => !o.endedAt
+)
+
+);
+
+}
+
+
+else{
+
+el("timer").textContent =
+"00:00:00";
+
+el("firstBox")
+.classList
+.remove(
+"hidden"
+);
+
+el("addBox")
+.classList
+.add(
+"hidden"
+);
+
+el("ordersArea").innerHTML =
+"";
+
+el("closeBtn")
+.classList
+.add(
+"hidden"
+);
+
+el("liveKm").value =
+"0.00 km";
+
+}
+
+
+/* 待機 */
+
+if(
+data.idle
+){
+
+el("idleStatus").textContent =
+data.idle.area
++
+" 待機中 "
++
+dur(
+now
+-
+data.idle.startedAt
+);
+
+}
+
+else{
+
+el("idleStatus").textContent =
+"目前沒有待機計時";
+
+}
+
+
+renderRecords();
+
+renderAnalysis();
+
+renderPeriods();
+
+}
+
+
+/* =========================
+   完整紀錄
+========================= */
+
+function renderRecords(){
+
+let arr =
+[
+...data.trips
+]
+.sort(
+(a,b) =>
+b.startedAt
+-
+a.startedAt
+);
+
+
+if(
+arr.length === 0
+){
+
+el("tripList").innerHTML =
+
+`
+<div
+class="muted"
+style="margin-top:10px">
+目前沒有紀錄
+</div>
+`;
+
+return;
+
+}
+
+
+el("tripList").innerHTML =
+arr
+.map(
+
+trip => {
+
+let z =
+totals(
+[trip]
+);
+
+
+return`
+
+<div class="trip">
+
+<b>
+
+${localDate(trip.startedAt)}
+
+${clock(trip.startedAt)}
+
+→
+
+${clock(trip.endedAt)}
+
+</b>
+
+<div class="smallline">
+
+${z.orders}單
+｜
+${z.km.toFixed(2)} km
+
+</div>
+
+<div class="smallline">
+
+接單
+${money(z.income)}
+
+｜
+估算
+${money(z.estimate)}
+
+｜
+差額
+${money(z.diff)}
+
+</div>
+
+
+${
+
+(trip.orders || [])
+.map(
+
+order =>
+
+`
+
+<div class="muted"
+style="margin-top:5px">
+
+第${order.id}張
+
+${order.startArea || "?"}
+
+→
+
+${order.endArea || "?"}
+
+｜
+${money(order.amount)}
+
+｜
+${mins(order,order.endedAt).toFixed(1)}分
+
+｜
+差額
+${money(diff(order,order.endedAt))}
+
+</div>
+
+`
+
+)
+.join("")
+
+}
+
+</div>
+
+`;
+
+}
+)
+.join("");
+
+}
+
+
+/* =========================
+   本期分析
+========================= */
+
+function renderAnalysis(){
+
+let p =
+currentPeriod();
+
+
+let orders =
+tripOrders(
+periodTrips(p)
+);
+
+
+let byHour =
+{};
+
+let byStart =
+{};
+
+let byEnd =
+{};
+
+let byRoute =
+{};
+
+let byCombo =
+{};
+
+
+orders.forEach(
+
+order => {
+
+let hr =
+hourLabel(
+order.startedAt
+);
+
+let start =
+order.startArea
+||
+"未標註";
+
+let end =
+order.endArea
+||
+"未標註";
+
+let route =
+start
++
+" → "
++
+end;
+
+let combo =
+hr
++
+"｜"
++
+start;
+
+
+byHour[hr] =
+(byHour[hr] || 0)
++
+1;
+
+
+byStart[start] =
+(byStart[start] || 0)
++
+1;
+
+
+byEnd[end] =
+(byEnd[end] || 0)
++
+1;
+
+
+byRoute[route] =
+(byRoute[route] || 0)
++
+1;
+
+
+byCombo[combo] =
+(byCombo[combo] || 0)
++
+1;
+
+}
+);
+
+
+/* 排名 */
+
+function top(
+obj,
+n=10
+){
+
+return Object.entries(obj)
+.sort(
+(a,b) =>
+b[1]-a[1]
+)
+.slice(
+0,
+n
+);
+
+}
+
+
+function block(
+title,
+obj
+){
+
+let arr =
+top(obj);
+
+
+return`
+
+<div class="rank">
+
+<b>
+${title}
+</b>
+
+${
+
+arr.length
+
+?
+
+arr
+.map(
+
+(x,i) =>
+
+`
+
+<div
+style="margin-top:6px">
+
+${i+1}.
+${x[0]}
+
+：
+<b>
+${x[1]}單
+</b>
+
+</div>
+
+`
+
+)
+.join("")
+
+:
+
+`
+<div class="muted">
+尚無資料
+</div>
+`
+
+}
+
+</div>
+
+`;
+
+}
+
+
+/* 待機分析 */
+
+let ids =
+data.idles.filter(
+
+x =>
+x.startedAt >= p.start
+&&
+x.startedAt < p.end
+
+);
+
+
+let idleMap =
+{};
+
+
+ids.forEach(
+
+x => {
+
+let key =
+hourLabel(x.startedAt)
++
+"｜"
++
+x.area;
+
+
+idleMap[key] =
+(idleMap[key] || 0)
++
+(
+(x.endedAt-x.startedAt)
+/
+60000
+);
+
+}
+);
+
+
+let idleTop =
+Object.entries(
+idleMap
+)
+.sort(
+(a,b) =>
+b[1]-a[1]
+)
+.slice(
+0,
+10
+);
+
+
+let idleBlock =
+
+`
+
+<div class="rank">
+
+<b>
+待機／無單較久
+</b>
+
+${
+
+idleTop.length
+
+?
+
+idleTop
+.map(
+
+(x,i) =>
+
+`
+
+<div
+style="margin-top:6px">
+
+${i+1}.
+
+${x[0]}
+
+：
+${x[1].toFixed(0)}
+分鐘
+
+</div>
+
+`
+
+)
+.join("")
+
+:
+
+`
+<div class="muted">
+尚無待機資料
+</div>
+`
+
+}
+
+</div>
+
+`;
+
+
+el("analysis").innerHTML =
+
+block(
+"本期單量最多時段",
+byHour
+)
+
++
+
+block(
+"本期起點最多地區",
+byStart
+)
+
++
+
+block(
+"本期終點最多地區",
+byEnd
+)
+
++
+
+block(
+"地區 × 時段",
+byCombo
+)
+
++
+
+block(
+"起點 → 終點路線",
+byRoute
+)
+
++
+
+idleBlock;
+
+}
+
+
+/* =========================
+   歷期結算
+========================= */
+
+function renderPeriods(){
+
+if(
+!data.trips.length
+){
+
+el("periodList").innerHTML =
+
+`
+<div class="muted">
+尚無歷期資料
+</div>
+`;
+
+return;
+
+}
+
+
+let map =
+{};
+
+
+data.trips.forEach(
+
+trip => {
+
+let p =
+periodFor(
+trip.startedAt
+);
+
+
+if(
+!map[p.key]
+){
+
+map[p.key] = {
+
+p:
+
+p,
+
+trips:[]
+
+};
+
+}
+
+
+map[p.key]
+.trips
+.push(
+trip
+);
+
+}
+);
+
+
+el("periodList").innerHTML =
+Object.values(map)
+
+.sort(
+(a,b) =>
+b.p.start
+-
+a.p.start
+)
+
+.map(
+
+x => {
+
+let z =
+totals(
+x.trips
+);
+
+
+return`
+
+<div class="trip">
+
+<b>
+${periodName(x.p)}
+</b>
+
+<div class="smallline">
+訂單：
+${z.orders}
+</div>
+
+<div class="smallline">
+接單金額：
+${money(z.income)}
+</div>
+
+<div class="smallline">
+4.1估算：
+${money(z.estimate)}
+</div>
+
+<div class="smallline">
+
+<b>
+估算差額：
+${money(z.diff)}
+</b>
+
+</div>
+
+</div>
+
+`;
+
+}
+)
+.join("");
+
+}
+
+
+/* =========================
+   分頁
+========================= */
+
+function showPanel(name){
+
+[
+"records",
+"analysis",
+"periods"
+]
+.forEach(
+
+n => {
+
+el(
+n+"Panel"
+)
+.classList
+.toggle(
+"hidden",
+n !== name
+);
+
+}
+
+);
+
+}
+
+
+/* =========================
+   CSV 匯出
+========================= */
+
+function exportCSV(){
+
+let rows = [
+
+[
+"日期",
+"趟開始",
+"趟結束",
+"訂單",
+"接單時間",
+"完成時間",
+"起點",
+"終點",
+"接單金額",
+"分鐘",
+"4.1估算",
+"估算差額",
+"趟里程",
+"期別"
+]
+
+];
+
+
+data.trips.forEach(
+
+trip => {
+
+(trip.orders || [])
+.forEach(
+
+order => {
+
+let p =
+periodFor(
+order.startedAt
+);
+
+
+rows.push(
+
+[
+localDate(order.startedAt),
+
+clock(trip.startedAt),
+
+clock(trip.endedAt),
+
+order.id,
+
+clock(order.startedAt),
+
+clock(order.endedAt),
+
+order.startArea || "",
+
+order.endArea || "",
+
+order.amount,
+
+mins(
+order,
+order.endedAt
+).toFixed(2),
+
+est(
+order,
+order.endedAt
+).toFixed(2),
+
+diff(
+order,
+order.endedAt
+).toFixed(2),
+
+Number(
+trip.km || 0
+).toFixed(2),
+
+periodName(p)
+
+]
+
+);
+
+}
+);
+
+}
+);
+
+
+/* 加 BOM 讓 Excel 正常顯示中文 */
+
+let csv =
+"\ufeff"
++
+rows
+.map(
+
+row =>
+row
+.map(
+
+v =>
+`"${String(v).replaceAll('"','""')}"`
+
+)
+.join(",")
+
+)
+.join("\n");
+
+
+let blob =
+new Blob(
+
+[csv],
+
+{
+type:
+"text/csv;charset=utf-8"
+}
+
+);
+
+
+let url =
+URL.createObjectURL(
+blob
+);
+
+
+let a =
+document.createElement(
+"a"
+);
+
+
+a.href =
+url;
+
+
+a.download =
+"外送助手_"
++
+localDate()
++
+".csv";
+
+
+a.click();
+
+
+setTimeout(
+
+() =>
+URL.revokeObjectURL(url),
+
+1000
+
+);
+
+}
+
+
+/* =========================
+   清除今天資料
+========================= */
+
+function clearToday(){
+
+if(
+
+!confirm(
+"確定清除今天已完成的外送與待機資料？"
+)
+
+){
+
+return;
+
+}
+
+
+let td =
+localDate();
+
+
+data.trips =
+data.trips.filter(
+
+trip =>
+localDate(
+trip.startedAt
+)
+!== td
+
+);
+
+
+data.idles =
+data.idles.filter(
+
+x =>
+localDate(
+x.startedAt
+)
+!== td
+
+);
+
+
+save();
+
+render();
+
+}
+
+
+/* =========================
+   按鈕
+========================= */
+
+el("startBtn").onclick =
+startTrip;
+
+
+el("addBtn").onclick =
+addOrder;
+
+
+el("closeBtn").onclick =
+closeTrip;
+
+
+el("idleStart").onclick =
+startIdle;
+
+
+el("idleStop").onclick =
+() =>
+stopIdle(true);
+
+
+el("exportBtn").onclick =
+exportCSV;
+
+
+el("clearBtn").onclick =
+clearToday;
+
+
+/* =========================
+   每秒更新
+========================= */
+
+setInterval(
+render,
+1000
+);
+
+
+/* 如果重新打開時仍有進行中訂單 */
+
+if(
+data.active
+){
+
+startGPS();
+
+}
+
+
+/* 第一次畫面 */
+
+render();
+
+</script>
+
+</body>
+</html>
