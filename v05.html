@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>外送助手 v0.5</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#0b0f14;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.wrap{max-width:760px;margin:auto;padding:16px}
+h1{font-size:29px;margin:6px 0}
+.sub,.muted{color:#94a3b8;font-size:13px}
+.card{background:#111827;border:1px solid #263244;border-radius:18px;padding:15px;margin:12px 0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.stat{background:#0f172a;border-radius:13px;padding:11px}
+.stat small{color:#94a3b8}.stat b{display:block;font-size:20px;margin-top:4px}
+.timer{text-align:center;font-size:38px;font-weight:800;font-variant-numeric:tabular-nums;margin:8px}
+label{display:block;color:#cbd5e1;font-size:13px;margin:8px 0 5px}
+input{width:100%;padding:12px;border-radius:11px;border:1px solid #334155;background:#0b1220;color:#fff;font-size:16px}
+button{width:100%;padding:14px;border:0;border-radius:14px;font-size:16px;font-weight:800;margin-top:8px}
+.start{background:#22c55e;color:#06240f}.finish{background:#ef4444;color:#fff}.add{background:#2563eb;color:#fff}.secondary{background:#1f2937;color:#fff}.orange{background:#f59e0b;color:#1c1202}
+.buttons{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.order,.trip,.rank{background:#0f172a;border:1px solid #334155;border-radius:13px;padding:11px;margin-top:9px;font-size:14px}
+.order.done{opacity:.75}.orderhead{display:flex;justify-content:space-between;gap:8px}
+.warning{color:#fbbf24;font-size:12px;line-height:1.5}.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.tabs button{font-size:13px;padding:10px}
+.hidden{display:none}.route{margin-top:5px;font-weight:700}.smallline{color:#cbd5e1;font-size:13px;margin-top:4px}
+.area-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:6px}
+.area-btn{background:#1f2937;color:#fff;padding:11px 6px;font-size:14px;margin:0}
+.area-btn.selected{background:#22c55e;color:#06240f}
+@media (max-width:420px){.area-grid{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>外送助手 <span class="muted">v0.5 雲端同步版</span></h1>
+<div class="sub">iPhone 跑單・Windows 查看・Supabase 同步・本機離線保留</div>
+
+<div class="card">
+<b>雲端同步</b>
+<div id="authStatus" class="muted" style="margin-top:7px">尚未登入</div>
+<div id="loginBox">
+<label>Email</label><input id="email" type="email" autocomplete="username" placeholder="你的 Email">
+<label>密碼</label><input id="password" type="password" autocomplete="current-password" placeholder="至少 6 個字元">
+<div class="buttons"><button id="loginBtn" class="add">登入</button><button id="signupBtn" class="secondary">第一次註冊</button></div>
+</div>
+<div id="loggedBox" class="hidden">
+<div class="buttons"><button id="syncBtn" class="add">立即同步</button><button id="logoutBtn" class="secondary">登出</button></div>
+</div>
+<div id="syncStatus" class="muted" style="margin-top:8px">本機資料可離線使用</div>
+</div>
+
+<div class="grid">
+<div class="stat"><small>今日趟次</small><b id="sTrips">0</b></div>
+<div class="stat"><small>今日訂單</small><b id="sOrders">0</b></div>
+<div class="stat"><small>今日接單金額</small><b id="sIncome">$0</b></div>
+<div class="stat"><small>今日估算差額</small><b id="sDiff">$0</b></div>
+<div class="stat"><small>今日里程</small><b id="sKm">0.00 km</b></div>
+<div class="stat"><small>目前期別訂單</small><b id="sPeriodOrders">0</b></div>
+</div>
+
+<div class="card">
+<b>目前期別</b>
+<div id="periodText" class="muted" style="margin-top:7px"></div>
+<div class="grid" style="margin-top:10px">
+<div class="stat"><small>本期接單金額</small><b id="pIncome">$0</b></div>
+<div class="stat"><small>本期4.1估算</small><b id="pEstimate">$0</b></div>
+<div class="stat"><small>本期估算差額</small><b id="pDiff">$0</b></div>
+<div class="stat"><small>本期訂單</small><b id="pOrders">0</b></div>
+</div>
+</div>
+
+<div class="card" id="activeCard">
+<div class="muted">本趟總時間</div>
+<div class="timer" id="timer">00:00:00</div>
+<div class="muted" id="gpsStatus">GPS 尚未啟動</div>
+<label>GPS里程（參考）</label>
+<input id="liveKm" value="0.00 km" readonly>
+<div id="ordersArea"></div>
+
+<div id="firstBox">
+<label>第1張接單金額（元）</label>
+<input id="firstAmount" type="number" inputmode="decimal" placeholder="例如 45">
+<label>起點區域</label>
+<div id="firstStartArea" class="area-grid"></div>
+<button id="startBtn" class="start">第1張接單開始</button>
+</div>
+
+<div id="addBox" class="hidden">
+<label id="nextLabel">第2張疊單接單金額（元）</label>
+<input id="nextAmount" type="number" inputmode="decimal" placeholder="例如 52">
+<label>這張訂單起點區域</label>
+<div id="nextStartArea" class="area-grid"></div>
+<button id="addBtn" class="add">＋ 加入疊單</button>
+</div>
+</div>
+
+<div class="card">
+<b>待機／無單紀錄</b>
+<div class="muted" style="margin-top:6px">沒有接單時可記錄目前等待區域，用來分析哪裡最容易空等。</div>
+<label>目前待機區域</label>
+<div id="idleAreaButtons" class="area-grid"></div>
+<div class="buttons"><button id="idleStart" class="orange">開始待機</button><button id="idleStop" class="secondary">結束待機</button></div>
+<div id="idleStatus" class="muted" style="margin-top:8px">目前沒有待機計時</div>
+</div>
+
+<div class="card">
+<label>本趟手動里程 km</label>
+<input id="manualKm" type="number" inputmode="decimal" step="0.1" placeholder="GPS不準時可填 Uber 顯示里程">
+<button id="closeBtn" class="finish hidden">結束本趟並儲存</button>
+<p class="warning">4.1元／分鐘為你的個人估算方式，不代表 Uber Eats 或政府正式認定的補貼計算。</p>
+</div>
+
+<div class="card">
+<div class="tabs">
+<button class="secondary" onclick="showPanel('records')">完整紀錄</button>
+<button class="secondary" onclick="showPanel('analysis')">本期分析</button>
+<button class="secondary" onclick="showPanel('periods')">歷期結算</button>
+</div>
+<div id="recordsPanel"><div id="tripList"></div></div>
+<div id="analysisPanel" class="hidden"><div id="analysis"></div></div>
+<div id="periodsPanel" class="hidden"><div id="periodList"></div></div>
+</div>
+
+<div class="buttons">
+<button class="secondary" id="exportBtn">匯出備份 CSV</button>
+<button class="secondary" id="clearBtn">清除今日資料</button>
+</div>
+
+<div class="warning" style="margin-top:12px">
+iPhone PWA 在背景或鎖屏時可能暫停 GPS；計時使用時間戳記。v0.5 加入 Supabase 雲端同步。第一次請先在原本有 v0.4 資料的 iPhone 登入，再到 Windows 登入。
+</div>
+</div>
+
+<script>
+const SUPABASE_URL="https://gmoquieiegopatzpvooc.supabase.co";
+const SUPABASE_KEY="sb_publishable_q--fgZi5lR2LqSYIFyqyVw_70NeU_ki";
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const KEY="delivery-helper-v05";
+const OLDKEYS=["delivery-helper-v04","delivery-helper-v03-final","delivery-helper-v03"];
+const RATE=4.1;
+const AREAS=["北區","中西區","東區","永康區","安南區","安平區","南區","仁德區","歸仁區","新市區","善化區","安定區","其他"];
+
+let session=null,cloudRowId=null,syncTimer=null,syncBusy=false;
+let data=loadData();
+let gpsWatch=null,lastPos=null;
+let firstStart="北區",nextStart="北區",idleArea="北區";
+let lastOrderStructure="";
+
+function blank(){return {active:null,trips:[],idle:null,idles:[],_updatedAt:0}}
+function loadData(){
+ try{
+   let own=localStorage.getItem(KEY);
+   if(own)return Object.assign(blank(),JSON.parse(own));
+   for(const k of OLDKEYS){
+     let old=localStorage.getItem(k);
+     if(old){let d=Object.assign(blank(),JSON.parse(old));d._updatedAt=Date.now();localStorage.setItem(KEY,JSON.stringify(d));return d;}
+   }
+ }catch(e){}
+ return blank();
+}
+function save(localChange=true){if(localChange)data._updatedAt=Date.now();localStorage.setItem(KEY,JSON.stringify(data));if(localChange)scheduleSync();}
+function el(id){return document.getElementById(id)}
+function money(n){return "$"+Number(n||0).toFixed(1)}
+function localDate(ms=Date.now()){let d=new Date(ms);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function clock(ms){let d=new Date(ms);return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")+":"+String(d.getSeconds()).padStart(2,"0")}
+function dur(ms){let s=Math.max(0,Math.floor(ms/1000)),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),q=s%60;return [h,m,q].map(v=>String(v).padStart(2,"0")).join(":")}
+function mins(o,now=Date.now()){return Math.max(0,((o.endedAt||now)-o.startedAt)/60000)}
+function est(o,now=Date.now()){return mins(o,now)*RATE}
+function diff(o,now=Date.now()){return Math.max(0,est(o,now)-Number(o.amount||0))}
+function hourLabel(ms){let h=new Date(ms).getHours();return String(h).padStart(2,"0")+":00–"+String(h).padStart(2,"0")+":59"}
+
+function periodFor(ms){
+ let anchor=new Date(2026,7,31,4,0,0,0).getTime(),span=14*86400000;
+ let i=Math.floor((ms-anchor)/span),start=anchor+i*span,end=start+span;
+ return {start,end,key:localDate(start)+"_04"};
+}
+function periodName(p){return localDate(p.start)+" 04:00 ～ "+localDate(p.end)+" 03:59"}
+function currentPeriod(){return periodFor(Date.now())}
+
+
+function setSyncStatus(t){el("syncStatus").textContent=t;}
+function scheduleSync(){if(!session)return;clearTimeout(syncTimer);syncTimer=setTimeout(()=>syncNow(false),1200);}
+async function syncNow(manual=true){
+ if(!session||syncBusy)return; syncBusy=true;
+ try{
+   setSyncStatus("正在同步…");
+   const {data:rows,error}=await sb.from("delivery_data").select("id,data,updated_at").eq("data_type","snapshot").order("updated_at",{ascending:false}).limit(1);
+   if(error)throw error;
+   if(!rows||rows.length===0){
+     const {data:ins,error:ie}=await sb.from("delivery_data").insert({user_id:session.user.id,device_id:navigator.userAgent.slice(0,120),data_type:"snapshot",data:data}).select("id").single();
+     if(ie)throw ie; cloudRowId=ins.id; setSyncStatus("已建立雲端資料並同步");
+   }else{
+     cloudRowId=rows[0].id; const cloud=Object.assign(blank(),rows[0].data||{});
+     const lu=Number(data._updatedAt||0),cu=Number(cloud._updatedAt||0);
+     if(cu>lu){data=cloud;save(false);renderAll();setSyncStatus("已從雲端下載最新資料");}
+     else if(lu>cu){const {error:ue}=await sb.from("delivery_data").update({data:data,device_id:navigator.userAgent.slice(0,120),updated_at:new Date().toISOString()}).eq("id",cloudRowId);if(ue)throw ue;setSyncStatus("已上傳最新資料到雲端");}
+     else setSyncStatus("雲端與本機已同步");
+   }
+ }catch(err){console.error(err);setSyncStatus("同步失敗："+(err.message||String(err)));if(manual)alert("同步失敗\n"+(err.message||String(err)));}
+ finally{syncBusy=false;}
+}
+function renderAuth(){
+ if(session){el("loginBox").classList.add("hidden");el("loggedBox").classList.remove("hidden");el("authStatus").textContent="已登入："+(session.user.email||"");}
+ else{el("loginBox").classList.remove("hidden");el("loggedBox").classList.add("hidden");el("authStatus").textContent="尚未登入";setSyncStatus("本機資料可離線使用");}
+}
+async function refreshSession(){const {data:r}=await sb.auth.getSession();session=r.session;renderAuth();if(session)await syncNow(false);}
+async function login(){const email=el("email").value.trim(),password=el("password").value;if(!email||!password)return alert("請輸入 Email 和密碼");const {data:r,error}=await sb.auth.signInWithPassword({email,password});if(error)return alert("登入失敗\n"+error.message);session=r.session;renderAuth();await syncNow(true);}
+async function signup(){const email=el("email").value.trim(),password=el("password").value;if(!email||password.length<6)return alert("請輸入 Email，密碼至少 6 個字元");const {data:r,error}=await sb.auth.signUp({email,password});if(error)return alert("註冊失敗\n"+error.message);session=r.session;if(!session)alert("註冊完成，請驗證 Email 後再登入。");else{alert("註冊成功");renderAuth();await syncNow(true);}}
+async function logout(){await sb.auth.signOut();session=null;cloudRowId=null;renderAuth();}
+
+function makeAreaButtons(containerId,getSelected,setSelected){
+ let c=el(containerId);
+ c.innerHTML=AREAS.map(a=>`<button type="button" class="area-btn ${getSelected()===a?"selected":""}" data-area="${a}">${a}</button>`).join("");
+ c.querySelectorAll(".area-btn").forEach(btn=>{
+   btn.onclick=()=>{
+     setSelected(btn.dataset.area);
+     c.querySelectorAll(".area-btn").forEach(b=>b.classList.toggle("selected",b===btn));
+   };
+ });
+}
+function initAreaButtons(){
+ makeAreaButtons("firstStartArea",()=>firstStart,v=>firstStart=v);
+ makeAreaButtons("nextStartArea",()=>nextStart,v=>nextStart=v);
+ makeAreaButtons("idleAreaButtons",()=>idleArea,v=>idleArea=v);
+}
+initAreaButtons();
+
+function distance(a,b){
+ const R=6371,r=x=>x*Math.PI/180,dLat=r(b.lat-a.lat),dLon=r(b.lon-a.lon);
+ const x=Math.sin(dLat/2)**2+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(dLon/2)**2;
+ return 2*R*Math.asin(Math.sqrt(x));
+}
+function startGPS(){
+ if(!navigator.geolocation){el("gpsStatus").textContent="此裝置不支援GPS";return}
+ if(gpsWatch!==null)navigator.geolocation.clearWatch(gpsWatch);
+ gpsWatch=navigator.geolocation.watchPosition(p=>{
+   el("gpsStatus").textContent="GPS 已啟動，精度約 "+Math.round(p.coords.accuracy)+" 公尺";
+   if(!data.active||p.coords.accuracy>80)return;
+   let cur={lat:p.coords.latitude,lon:p.coords.longitude};
+   if(lastPos){
+     let km=distance(lastPos,cur);
+     if(km<1.5){data.active.km=(data.active.km||0)+km;save()}
+   }
+   lastPos=cur;
+   renderNumbers();
+ },()=>{el("gpsStatus").textContent="GPS 無法使用，請檢查位置權限"},{enableHighAccuracy:true,maximumAge:5000,timeout:15000});
+}
+function stopGPS(){if(gpsWatch!==null)navigator.geolocation.clearWatch(gpsWatch);gpsWatch=null;lastPos=null}
+
+function stopIdle(renderNow=true){
+ if(!data.idle)return;
+ data.idles.push({...data.idle,endedAt:Date.now()});
+ data.idle=null;save();
+ if(renderNow)renderAll();
+}
+function startIdle(){
+ if(data.active)return alert("目前有進行中的訂單");
+ if(data.idle)return alert("待機已經開始");
+ data.idle={area:idleArea,startedAt:Date.now()};
+ save();renderAll();
+}
+
+function startTrip(){
+ let amount=Number(el("firstAmount").value);
+ if(!(amount>0))return alert("請輸入第1張接單金額");
+ stopIdle(false);
+ let now=Date.now();
+ data.active={startedAt:now,km:0,orders:[{id:1,startedAt:now,endedAt:null,amount,startArea:firstStart,endArea:""}]};
+ el("firstAmount").value="";el("manualKm").value="";
+ save();startGPS();renderAll();
+}
+function addOrder(){
+ if(!data.active||data.active.orders.length>=5)return;
+ let amount=Number(el("nextAmount").value);
+ if(!(amount>0))return alert("請輸入這張疊單金額");
+ let id=data.active.orders.length+1;
+ data.active.orders.push({id,startedAt:Date.now(),endedAt:null,amount,startArea:nextStart,endArea:""});
+ el("nextAmount").value="";
+ save();renderAll();
+}
+function selectEndArea(id,area){
+ let o=data.active?.orders.find(x=>x.id===id);if(!o||o.endedAt)return;
+ o.tempEndArea=area;save();
+ let box=el("endButtons"+id);
+ if(box)box.querySelectorAll(".area-btn").forEach(b=>b.classList.toggle("selected",b.dataset.area===area));
+}
+function finishOrder(id){
+ let o=data.active?.orders.find(x=>x.id===id);if(!o||o.endedAt)return;
+ if(!o.tempEndArea)return alert("請先選擇終點區域");
+ o.endArea=o.tempEndArea;o.endedAt=Date.now();delete o.tempEndArea;
+ save();renderAll();
+}
+function closeTrip(){
+ if(!data.active)return;
+ if(data.active.orders.some(o=>!o.endedAt))return alert("還有訂單尚未完成");
+ let manual=Number(el("manualKm").value),a=data.active;
+ data.trips.push({...a,endedAt:Date.now(),km:manual>0?manual:(a.km||0)});
+ data.active=null;el("manualKm").value="";
+ save();stopGPS();renderAll();
+}
+
+function tripOrders(trips){return trips.flatMap(t=>t.orders||[])}
+function totals(trips){
+ let os=tripOrders(trips);
+ return {
+   orders:os.length,
+   income:os.reduce((s,o)=>s+Number(o.amount||0),0),
+   estimate:os.reduce((s,o)=>s+est(o,o.endedAt||Date.now()),0),
+   diff:os.reduce((s,o)=>s+diff(o,o.endedAt||Date.now()),0),
+   km:trips.reduce((s,t)=>s+Number(t.km||0),0)
+ };
+}
+function todayTrips(){let td=localDate();return data.trips.filter(t=>localDate(t.startedAt)===td)}
+function periodTrips(p=currentPeriod()){return data.trips.filter(t=>t.startedAt>=p.start&&t.startedAt<p.end)}
+
+function orderStructureKey(){
+ if(!data.active)return "none";
+ return data.active.orders.map(o=>`${o.id}:${o.endedAt?1:0}:${o.startArea}:${o.endArea||""}`).join("|");
+}
+
+function renderOrderStructure(){
+ const key=orderStructureKey();
+ if(key===lastOrderStructure)return;
+ lastOrderStructure=key;
+
+ if(!data.active){
+   el("ordersArea").innerHTML="";
+   el("firstBox").classList.remove("hidden");
+   el("addBox").classList.add("hidden");
+   el("closeBtn").classList.add("hidden");
+   return;
+ }
+ el("firstBox").classList.add("hidden");
+ let n=data.active.orders.length;
+ el("addBox").classList.toggle("hidden",n>=5);
+ el("nextLabel").textContent=`第${n+1}張疊單接單金額（元）`;
+
+ el("ordersArea").innerHTML=data.active.orders.map(o=>`
+ <div class="order ${o.endedAt?"done":""}">
+   <div class="orderhead"><b>第${o.id}張</b><span>${o.endedAt?"已完成":"進行中"}</span></div>
+   <div class="route">${o.startArea||"未標註"} → ${o.endArea||"待選"}</div>
+   <div class="smallline">接單金額：${money(o.amount)}</div>
+   <div class="smallline">接單：${clock(o.startedAt)}${o.endedAt?"｜完成："+clock(o.endedAt):""}</div>
+   <div class="smallline">時間：<span id="m${o.id}">${mins(o).toFixed(1)}</span> 分鐘</div>
+   <div class="smallline">4.1估算：<span id="e${o.id}">${money(est(o))}</span></div>
+   <div class="smallline">估算差額：<span id="d${o.id}">${money(diff(o))}</span></div>
+   ${!o.endedAt?`
+      <label>終點區域</label>
+      <div id="endButtons${o.id}" class="area-grid">
+        ${AREAS.map(a=>`<button type="button" class="area-btn ${o.tempEndArea===a?"selected":""}" data-area="${a}" onclick="selectEndArea(${o.id},'${a}')">${a}</button>`).join("")}
+      </div>
+      <button class="finish" onclick="finishOrder(${o.id})">完成第${o.id}張</button>
+   `:""}
+ </div>`).join("");
+
+ el("closeBtn").classList.toggle("hidden",data.active.orders.some(o=>!o.endedAt));
+}
+
+function renderNumbers(){
+ let now=Date.now(),tt=totals(todayTrips()),p=currentPeriod(),pt=totals(periodTrips(p));
+ el("sTrips").textContent=todayTrips().length;el("sOrders").textContent=tt.orders;el("sIncome").textContent=money(tt.income);el("sDiff").textContent=money(tt.diff);el("sKm").textContent=tt.km.toFixed(2)+" km";el("sPeriodOrders").textContent=pt.orders;
+ el("periodText").textContent=periodName(p);el("pIncome").textContent=money(pt.income);el("pEstimate").textContent=money(pt.estimate);el("pDiff").textContent=money(pt.diff);el("pOrders").textContent=pt.orders;
+
+ if(data.active){
+   el("timer").textContent=dur(now-data.active.startedAt);
+   el("liveKm").value=(data.active.km||0).toFixed(2)+" km";
+   data.active.orders.forEach(o=>{
+     let m=el("m"+o.id),e=el("e"+o.id),d=el("d"+o.id);
+     if(m)m.textContent=mins(o,now).toFixed(1);
+     if(e)e.textContent=money(est(o,now));
+     if(d)d.textContent=money(diff(o,now));
+   });
+ }else{
+   el("timer").textContent="00:00:00";el("liveKm").value="0.00 km";
+ }
+
+ el("idleStatus").textContent=data.idle?`${data.idle.area} 待機中 ${dur(now-data.idle.startedAt)}`:"目前沒有待機計時";
+}
+
+function renderRecords(){
+ let arr=[...data.trips].sort((a,b)=>b.startedAt-a.startedAt);
+ el("tripList").innerHTML=arr.length?arr.map(t=>{
+   let z=totals([t]);
+   return `<div class="trip"><b>${localDate(t.startedAt)} ${clock(t.startedAt)} → ${clock(t.endedAt)}</b>
+   <div class="smallline">${z.orders}單｜${z.km.toFixed(2)} km｜接單 ${money(z.income)}｜估算 ${money(z.estimate)}｜差額 ${money(z.diff)}</div>
+   ${(t.orders||[]).map(o=>`<div class="muted" style="margin-top:5px">第${o.id}張 ${o.startArea||"?"}→${o.endArea||"?"}｜${money(o.amount)}｜${mins(o,o.endedAt).toFixed(1)}分｜差額 ${money(diff(o,o.endedAt))}</div>`).join("")}
+   </div>`;
+ }).join(""):'<div class="muted" style="margin-top:10px">目前沒有紀錄</div>';
+}
+
+function renderAnalysis(){
+ let p=currentPeriod(),os=tripOrders(periodTrips(p)),byHour={},byStart={},byEnd={},byRoute={},byCombo={};
+ os.forEach(o=>{
+   let hr=hourLabel(o.startedAt),sa=o.startArea||"未標註",ea=o.endArea||"未標註",route=sa+" → "+ea,combo=hr+"｜"+sa;
+   byHour[hr]=(byHour[hr]||0)+1;byStart[sa]=(byStart[sa]||0)+1;byEnd[ea]=(byEnd[ea]||0)+1;byRoute[route]=(byRoute[route]||0)+1;byCombo[combo]=(byCombo[combo]||0)+1;
+ });
+ function top(obj,n=10){return Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,n)}
+ function block(title,obj){
+   let a=top(obj);
+   return `<div class="rank"><b>${title}</b>${a.length?a.map((x,i)=>`<div style="margin-top:6px">${i+1}. ${x[0]}：<b>${x[1]}單</b></div>`).join(""):'<div class="muted">尚無資料</div>'}</div>`;
+ }
+ let ids=data.idles.filter(x=>x.startedAt>=p.start&&x.startedAt<p.end),idleMap={};
+ ids.forEach(x=>{let k=hourLabel(x.startedAt)+"｜"+x.area;idleMap[k]=(idleMap[k]||0)+(x.endedAt-x.startedAt)/60000});
+ let idleTop=Object.entries(idleMap).sort((a,b)=>b[1]-a[1]).slice(0,10);
+ el("analysis").innerHTML=block("本期單量最多時段",byHour)+block("本期起點最多地區",byStart)+block("本期終點最多地區",byEnd)+block("地區 × 時段",byCombo)+block("起點 → 終點路線",byRoute)+
+ `<div class="rank"><b>待機／無單較久</b>${idleTop.length?idleTop.map((x,i)=>`<div style="margin-top:6px">${i+1}. ${x[0]}：${x[1].toFixed(0)}分鐘</div>`).join(""):'<div class="muted">尚無待機資料</div>'}</div>`;
+}
+
+function renderPeriods(){
+ if(!data.trips.length){el("periodList").innerHTML='<div class="muted">尚無歷期資料</div>';return}
+ let map={};
+ data.trips.forEach(t=>{let p=periodFor(t.startedAt);(map[p.key]||(map[p.key]={p,trips:[]})).trips.push(t)});
+ el("periodList").innerHTML=Object.values(map).sort((a,b)=>b.p.start-a.p.start).map(x=>{
+   let z=totals(x.trips);
+   return `<div class="trip"><b>${periodName(x.p)}</b><div class="smallline">${z.orders}單｜接單 ${money(z.income)}｜4.1估算 ${money(z.estimate)}｜<b>估算差額 ${money(z.diff)}</b></div></div>`;
+ }).join("");
+}
+function renderAll(){renderOrderStructure();renderNumbers();renderRecords();renderAnalysis();renderPeriods()}
+
+function showPanel(name){["records","analysis","periods"].forEach(n=>el(n+"Panel").classList.toggle("hidden",n!==name))}
+
+function exportCSV(){
+ let rows=[["日期","趟開始","趟結束","訂單","接單時間","完成時間","起點","終點","接單金額","分鐘","4.1估算","估算差額","趟里程","期別"]];
+ data.trips.forEach(t=>(t.orders||[]).forEach(o=>{
+   let p=periodFor(o.startedAt);
+   rows.push([localDate(o.startedAt),clock(t.startedAt),clock(t.endedAt),o.id,clock(o.startedAt),clock(o.endedAt),o.startArea||"",o.endArea||"",o.amount,mins(o,o.endedAt).toFixed(2),est(o,o.endedAt).toFixed(2),diff(o,o.endedAt).toFixed(2),Number(t.km||0).toFixed(2),periodName(p)]);
+ }));
+ let csv="\ufeff"+rows.map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(",")).join("\n");
+ let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download="外送助手_"+localDate()+".csv";a.click();
+ setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+function clearToday(){
+ if(!confirm("確定清除今天已完成的外送與待機資料？"))return;
+ let td=localDate();
+ data.trips=data.trips.filter(t=>localDate(t.startedAt)!==td);
+ data.idles=data.idles.filter(x=>localDate(x.startedAt)!==td);
+ save();renderAll();
+}
+
+el("startBtn").onclick=startTrip;
+el("addBtn").onclick=addOrder;
+el("closeBtn").onclick=closeTrip;
+el("idleStart").onclick=startIdle;
+el("idleStop").onclick=()=>stopIdle(true);
+el("exportBtn").onclick=exportCSV;
+el("clearBtn").onclick=clearToday;
+el("loginBtn").onclick=login;
+el("signupBtn").onclick=signup;
+el("logoutBtn").onclick=logout;
+el("syncBtn").onclick=()=>syncNow(true);
+
+sb.auth.onAuthStateChange((event,s)=>{session=s;renderAuth();});
+renderAll();
+renderAuth();
+refreshSession();
+if(data.active)startGPS();
+setInterval(renderNumbers,1000);
+setInterval(()=>{if(session)syncNow(false)},30000);
+</script>
+</body>
+</html>
