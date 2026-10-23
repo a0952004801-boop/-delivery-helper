@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>外送助手 V0.5.3.1</title>
+<style>
+*{box-sizing:border-box}
+html,body{
+  margin:0;
+  width:100%;
+  height:100%;
+  background:#0b0f14;
+  color:white
+}
+iframe{
+  display:block;
+  border:0;
+  width:100%;
+  height:100dvh
+}
+</style>
+</head>
+<body>
+
+<iframe id="app"
+        src="./v052.html"
+        title="外送助手 V0.5.3.1"
+        allow="geolocation">
+</iframe>
+
+<script>
+const frame=document.getElementById("app");
+
+frame.addEventListener("load",()=>{
+  try{
+    const doc=frame.contentDocument;
+    if(!doc||doc.getElementById("v0531-loader"))return;
+
+    const script=doc.createElement("script");
+    script.id="v0531-loader";
+    script.src="./v053-upgrade.js";
+    script.onerror=()=>alert(
+      "V0.5.3 升級程式載入失敗，請檢查 GitHub 檔案。"
+    );
+
+    doc.body.appendChild(script);
+  }catch(e){
+    alert("無法載入外送助手："+e.message);
+  }
+});
+</script>
+
+</body>
+</html>
