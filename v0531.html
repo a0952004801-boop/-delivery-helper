@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#111827">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>外送助手 v0.5.2</title>
+<title>外送助手 V0.5.3.1</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -142,7 +142,7 @@ button{
 
 <h1>
 外送助手
-<span class="muted">v0.5.2 修正版</span>
+<span class="muted">V0.5.3.1 完整整合版</span>
 </h1>
 
 <div class="sub">
@@ -265,6 +265,24 @@ iPhone 跑單・Windows 查看・Supabase 同步・最多10張疊單・可修改
 
 </div>
 
+</div>
+
+<!-- 04:00 換日與重疊配送工時 -->
+<div class="card" id="hoursCard">
+  <b>配送工時統計｜凌晨 04:00 換日</b>
+  <div id="serviceDayLabel" class="muted" style="margin:8px 0"></div>
+  <div class="grid">
+    <div class="stat"><small>今日逐單累計</small><b id="hDaySum">00:00:00</b></div>
+    <div class="stat"><small>今日實際配送</small><b id="hDayUnique">00:00:00</b></div>
+    <div class="stat"><small>本期逐單累計</small><b id="hPeriodSum">00:00:00</b></div>
+    <div class="stat"><small>本期實際配送</small><b id="hPeriodUnique">00:00:00</b></div>
+  </div>
+  <p class="muted">逐單累計會加總每張訂單時間；實際配送會扣除重疊時間。跨凌晨04:00的工時依時間分配到兩天，收入與單量歸接單日。</p>
+  <label>自訂統計起日</label><input id="customFrom" type="date">
+  <label>自訂統計迄日</label><input id="customTo" type="date">
+  <button class="secondary" id="customCalcBtn">計算日期區間</button>
+  <div id="customHours" class="smallline"></div>
+  <button class="secondary" id="exportHoursBtn">匯出每日工時 CSV</button>
 </div>
 
 <!-- 跑單 -->
@@ -465,7 +483,7 @@ onclick="showPanel('periods')">
 <div class="warning"
      style="margin-top:12px">
 
-v0.5.2 不會自動清除舊資料。
+V0.5.3.1 保留原本 V0.5.2 資料。
 iPhone PWA 鎖屏時 GPS 可能少算，
 時間仍以接單與完成時間戳記為主。
 
@@ -517,6 +535,13 @@ const AREAS=[
 "新市區",
 "善化區",
 "安定區",
+"關廟區",
+"麻豆區",
+"七股區",
+"佳里區",
+"湖內區",
+"路竹區",
+"岡山區",
 "其他"
 ];
 
@@ -637,6 +662,85 @@ String(d.getDate()).padStart(2,"0");
 
 }
 
+// 台灣時間 04:00 為統計日界線（裝置請設定台灣時區）
+function serviceDate(ms=Date.now()){
+  const d=new Date(ms);
+  d.setHours(d.getHours()-4);
+  return localDate(d.getTime());
+}
+function dayBounds(day){
+  const [y,m,d]=day.split("-").map(Number);
+  return [new Date(y,m-1,d,4).getTime(),new Date(y,m-1,d+1,4).getTime()];
+}
+function allCompletedOrders(){
+  return data.trips.flatMap(t=>t.orders||[]).filter(o=>
+    Number.isFinite(Number(o.startedAt)) &&
+    Number.isFinite(Number(o.endedAt)) &&
+    Number(o.endedAt)>Number(o.startedAt));
+}
+function orderHoursBetween(start,end){
+  const spans=allCompletedOrders()
+    .map(o=>[Math.max(start,Number(o.startedAt)),Math.min(end,Number(o.endedAt))])
+    .filter(([a,b])=>b>a).sort((a,b)=>a[0]-b[0]);
+  let sum=0,unique=0,lo=null,hi=null;
+  for(const [a,b] of spans){
+    sum+=b-a;
+    if(lo===null){lo=a;hi=b;}
+    else if(a<=hi){hi=Math.max(hi,b);}
+    else{unique+=hi-lo;lo=a;hi=b;}
+  }
+  if(lo!==null)unique+=hi-lo;
+  return {sum,unique};
+}
+function formatHours(ms){
+  return dur(Math.max(0,ms));
+}
+function showHours(){
+  const [ds,de]=dayBounds(serviceDate());
+  const day=orderHoursBetween(ds,de);
+  const p=currentPeriod();
+  const period=orderHoursBetween(p.start,p.end);
+  for(const [id,ms] of Object.entries({
+    hDaySum:day.sum,hDayUnique:day.unique,
+    hPeriodSum:period.sum,hPeriodUnique:period.unique
+  })){
+    const target=el(id);
+    if(target)target.textContent=formatHours(ms);
+  }
+  const label=el("serviceDayLabel");
+  if(label)label.textContent=serviceDate()+" 04:00 ～ 次日 03:59";
+}
+function calcCustomHours(){
+  const from=el("customFrom").value,to=el("customTo").value;
+  if(!from||!to||from>to){el("customHours").textContent="請選擇正確的起訖日期";return;}
+  const h=orderHoursBetween(dayBounds(from)[0],dayBounds(to)[1]);
+  el("customHours").textContent="逐單累計 "+formatHours(h.sum)+"｜實際配送 "+formatHours(h.unique);
+}
+function downloadCSV(rows,name){
+  const csv="\\ufeff"+rows.map(r=>r.map(v=>'"'+String(v??"").replaceAll('"','""')+'"').join(",")).join("\\r\\n");
+  const url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+  const a=document.createElement("a");
+  a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function exportHoursCSV(){
+  const days=new Set();
+  for(const o of allCompletedOrders()){
+    let t=dayBounds(serviceDate(o.startedAt))[0];
+    while(t<o.endedAt){
+      days.add(serviceDate(t));
+      const next=new Date(t);next.setDate(next.getDate()+1);
+      t=next.getTime();
+    }
+  }
+  const rows=[["統計日（04:00換日）","逐單累計時數","實際配送時數"]];
+  for(const day of [...days].sort()){
+    const [a,b]=dayBounds(day),h=orderHoursBetween(a,b);
+    rows.push([day,formatHours(h.sum),formatHours(h.unique)]);
+  }
+  downloadCSV(rows,"外送助手_V0531_每日工時.csv");
+}
+
 function clock(ms){
 
 if(!ms)return "--:--:--";
@@ -748,7 +852,7 @@ function periodName(p){
 
 return localDate(p.start)+
 " 04:00 ～ "+
-localDate(p.end)+
+serviceDate(p.end-1)+
 " 03:59";
 
 }
@@ -977,11 +1081,11 @@ return alert(
 "請輸入 Email 和密碼"
 );
 
-const {data:r,error}=
-await sb.auth.signInWithPassword({
-email,
-password
-});
+let r,error;
+try{
+ const result=await sb.auth.signInWithPassword({email,password});
+ r=result.data;error=result.error;
+}catch(err){alert("登入連線失敗："+(err.message||err));return;}
 
 if(error)
 return alert(
@@ -1777,12 +1881,12 @@ s+Number(t.km||0),
 function todayTrips(){
 
 let td=
-localDate();
+serviceDate();
 
 return data.trips
 .filter(
 t=>
-localDate(t.startedAt)===td
+serviceDate(t.startedAt)===td
 );
 
 }
@@ -2008,6 +2112,8 @@ data.active.orders
 
 function renderNumbers(){
 
+showHours();
+
 let now=Date.now();
 
 let tt=
@@ -2163,7 +2269,7 @@ return `
 <div class="trip">
 
 <b>
-${localDate(t.startedAt)}
+${serviceDate(t.startedAt)}
 ${clock(t.startedAt)}
 →
 ${clock(t.endedAt)}
@@ -2572,7 +2678,7 @@ n!==name
 function exportCSV(){
 
 let rows=[[
-"日期",
+"統計日（04:00換日）",
 "趟開始",
 "趟結束",
 "訂單",
@@ -2599,7 +2705,7 @@ periodFor(o.startedAt);
 
 rows.push([
 
-localDate(o.startedAt),
+serviceDate(o.startedAt),
 
 clock(t.startedAt),
 
@@ -2672,7 +2778,7 @@ type:
 );
 
 a.download=
-"外送助手_v052_"+
+"外送助手_v0531_"+
 localDate()+
 ".csv";
 
@@ -2697,18 +2803,18 @@ if(!confirm(
 return;
 
 let td=
-localDate();
+serviceDate();
 
 data.trips=
 data.trips.filter(
 t=>
-localDate(t.startedAt)!==td
+serviceDate(t.startedAt)!==td
 );
 
 data.idles=
 data.idles.filter(
 x=>
-localDate(x.startedAt)!==td
+serviceDate(x.startedAt)!==td
 );
 
 save();
@@ -2739,6 +2845,8 @@ el("idleStop")
 
 el("exportBtn")
 .onclick=exportCSV;
+el("customCalcBtn").onclick=calcCustomHours;
+el("exportHoursBtn").onclick=exportHoursCSV;
 
 el("clearBtn")
 .onclick=clearToday;
@@ -2799,8 +2907,6 @@ syncNow(false);
 );
 
 </script>
-<!-- V0.5.3.1 整合程式 -->
-<!-- 請按上方「複製整段新版程式」取得完整內容，
-     貼在原本 HTML 的 </body> 正上方。 -->
+
 </body>
 </html>
